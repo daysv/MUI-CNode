@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no" />
+	<title>CNode</title>
+	<meta name="apple-mobile-web-app-capable" content="yes">
+	<meta name="apple-mobile-web-app-status-bar-style" content="black">
+	<script src="js/mui.js"></script>
+	<link href="css/mui.min.css" rel="stylesheet" />
+	<style type="text/css">
+		.mui-bar{
+			z-index: 100;
+		}
+	</style>
+</head>
+<body>
+<div class="mui-off-canvas-wrap mui-draggable">
+	<div class="mui-inner-wrap">
+		<header class="mui-bar mui-bar-nav">
+			<a class="mui-icon mui-icon-bars mui-pull-left"></a>
+			<h1 id="test" class="mui-title">Cnode</h1>
+		</header>
+		<div class="mui-content">
+		</div>
+	</div>
+</div>
+<nav class="mui-bar mui-bar-tab">
+	<a class="mui-tab-item tabbar-more" href="#tabbar-more">
+		<span class="mui-icon mui-icon-more"></span>
+		<span class="mui-tab-label"></span>
+	</a>
+	<!--
+	<a class="mui-tab-item" href="#tabbar-new">
+		<span class="mui-icon mui-icon-chatbubble"></span>
+		<span class="mui-tab-label"></span>
+	</a>
+	-->
+	<a class="mui-tab-item" id="tabbar-goto" href="#tabbar-goto">
+		<span class="mui-icon mui-icon-paperplane"></span>
+	</a>
+	<a class="mui-tab-item" id="tabbar-refresh" href="#tabbar-refresh">
+		<span class="mui-icon mui-icon-reload"></span>
+		<span class="mui-tab-label"></span>
+	</a>
+</nav>
+
+<script type="text/javascript" charset="utf-8">
+	mui.init({
+		subpages: [{
+			url: '/list.html',
+			id: 'list.html',
+			styles: {
+				top: '48px', //mui标题栏默认高度为48px；
+				bottom: '48px' //默认为0px，可不定义；
+			}
+		}]
+	});
+
+	//菜单
+	var menu = null,list=null,mask = null;
+	var showMenu = false;
+	/**
+	 * 显示侧滑菜单
+	 */
+	mui.plusReady(function() {
+		if(mui.os.android){
+			plus.screen.lockOrientation("portrait-primary");
+		}
+		//处理侧滑导航，为了避免和子页面初始化等竞争资源，延迟加载侧滑页面；
+		setTimeout(function () {
+			menu= mui.preload({
+				id: 'index-menu',
+				url: 'index-menu.html',
+				styles: {
+					left: 0,
+					width: '70%',
+					zindex: -1
+				},
+				show:{
+					aniShow:'none'
+				}
+			});
+			//创建遮罩页面，使用透明webview解决index页面、list页面创建div遮罩不同步的问题；
+			//android 4.0以下版本不支持透明webview，故4.0以下暂不遮罩；
+			if(mui.os.android&&parseFloat(mui.os.version)>4.0){
+				mask = mui.preload({
+					id:"index-mask",
+					url:"index-mask.html",
+					styles:{
+						left:'70%',
+						width:'30%',
+						zindex:1,
+						opacity:0.1,
+						popGesture:"none"
+					}
+				});
+			}
+		},50);
+	});
+
+	function openMenu(){
+		if(!showMenu){
+			//侧滑菜单处于隐藏状态，则立即显示出来；
+			menu.show();
+			//显示遮罩
+			setTimeout(function () {
+				mask.show('none');
+			},150);
+			//主窗体开始侧滑；
+			mui.currentWebview.setStyle({
+				left:'70%',
+				transition: {
+					duration: 150
+				}
+			});
+			showMenu = true;
+		}
+	}
+	/**
+	 * 关闭菜单
+	 */
+	function closeMenu(){
+		if(showMenu){
+			//关闭遮罩；
+			mask.hide();
+			//主窗体开始侧滑；
+			mui.currentWebview.setStyle({
+				left: showMenu ? '0' : '70%',
+				transition: {
+					duration: 200
+				}
+			});
+			showMenu = false;
+			//等动画结束后，隐藏菜单webview，节省资源；
+			setTimeout(function () {
+				menu.hide();
+			},300);
+		}
+	}
+	//点击左上角侧滑图标，打开侧滑菜单；
+	document.querySelector('.mui-icon-bars').addEventListener('tap', openMenu);
+	document.querySelector('.tabbar-more').addEventListener('tap', openMenu);
+	//主界面向右滑动，若菜单未显示，则显示菜单；否则不做任何操作
+	window.addEventListener("swiperight",openMenu);
+	//主界面向左滑动，若菜单已显示，则关闭菜单；否则，不做任何操作；
+	window.addEventListener("swipeleft",closeMenu);
+	//侧滑菜单触发关闭菜单命令
+	window.addEventListener("menu:close",closeMenu);
+	window.addEventListener("menu:open",openMenu);
+	//页面刷新
+	document.getElementById('tabbar-refresh').addEventListener('tap', function() {
+		var list = plus.webview.getWebviewById('list.html');
+		mui.fire(list,'listRefresh',{
+		})
+	});
+	//页面跳转
+	document.getElementById('tabbar-goto').addEventListener('tap', function() {
+		var bts=["确认","取消"];
+		plus.nativeUI.prompt("请输入页码",function(e){
+			var i=e.value;
+			var list =plus.webview.getWebviewById('list.html');
+			mui.fire(list,'listGoto',{
+				page:i
+			})
+		},"CNode","1",bts);
+	});
+	/**
+	 *  按键事件
+	 */
+	mui.back=function(){
+		if(showMenu){
+			closeMenu();
+		}else if(plus.webview.currentWebview().id!=='list.html'){
+			plus.nativeUI.confirm( "你确定退出?", function(e){
+				if(e.index==0){
+					plus.runtime.quit();
+				}
+			}, "CNode", ["是","否"] );
+		}
+	};
+	mui.menu = function () {
+		if(showMenu){
+			closeMenu();
+		}else{
+			openMenu();
+		}
+	};
+</script>
+</body>
+
+</html>

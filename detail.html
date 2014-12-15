@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no" />
+	<title></title>
+	<meta name="apple-mobile-web-app-capable" content="yes">
+	<meta name="apple-mobile-web-app-status-bar-style" content="black">
+	<script src="js/mui.js"></script>
+	<link href="css/mui.min.css" rel="stylesheet" />
+	<link href="css/github-markdown.css" rel="stylesheet">
+	<style type="text/css">
+		body{
+			width:100%;
+			word-wrap: break-word;
+		}
+		h1,h2,h3,h4,small{
+			padding-left: 10px;
+			padding-right: 10px;
+		}
+		p{
+			padding: 10px;
+		}
+		small{
+			color:#666666
+		}
+	</style>
+</head>
+
+<body>
+<header class="mui-bar mui-bar-nav">
+	<a class="mui-icon mui-icon-left-nav mui-pull-left mui-action-back"></a>
+	<h1 id="title" class="mui-title"></h1>
+</header>
+<div class="mui-content markdown-body">
+	<h4 id='title1' style="padding-top: 10px;"></h4>
+	<small  id="introduce"></small>
+	<hr style="margin:5px">
+	<p id="text"></p>
+	<ul id="replies" style="padding: 0;" class="mui-table-view">
+		<li class="mui-table-view-divider">评论</li>
+	</ul>
+</div>
+<script type="text/javascript" charset="utf-8">
+	mui.init({
+		swipeBack:true //启用右滑关闭功能
+	});
+	window.onload = function(){
+		mui.plusReady(function() {
+			var self = plus.webview.currentWebview();
+			var detail_id = self.detailID;
+			var show= get('https://cnodejs.org/api/v1/topic/'+detail_id , function(detail) {
+				var data = JSON.parse(detail).data;
+				var num=data.replies.length;
+				data.content=data.content.replace(/\n/g,'<br>');
+				document.getElementById('title').innerText = data.title;
+				document.getElementById('title1').innerText = data.title;
+				document.getElementById('introduce').innerHTML =  data.author.loginname  +' '+ data.visit_count +' '+ data.create_at.substr(0,data.create_at.indexOf('T'));
+				document.getElementById('text').innerHTML = data.content;
+				for(var i=0;i<num;i++){
+					document.getElementById("replies").innerHTML+='<li class="mui-table-view-cell">'+data.replies[i].content+'<small>'+data.replies[i].author.loginname+' '+data.replies[i].create_at.substr(0,data.replies[i].create_at.indexOf('T'))+'</small></li>';
+				}
+				plus.nativeUI.closeWaiting();
+				mui.currentWebview.show();
+			});
+			//新建浏览器
+			mui('body').on('tap','a',function(e){
+				var href = this.getAttribute('href');
+				if (href) {
+					plus.runtime.openURL(href);
+				}
+			});
+		});
+	};
+	function get(url, callback) {
+		var xmlhttp = null;
+		xmlhttp = new XMLHttpRequest();
+		xmlhttp.open("GET", url, true);
+		xmlhttp.send(null);
+		xmlhttp.onreadystatechange = function() {
+			if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
+				callback(xmlhttp.responseText);
+			}
+		}
+	}
+	mui.back=function(){
+		plus.webview.currentWebview().close();
+	}
+
+</script>
+</body>
+</html>

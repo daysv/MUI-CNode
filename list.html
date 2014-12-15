@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no" />
+	<title></title>
+	<meta name="apple-mobile-web-app-capable" content="yes">
+	<meta name="apple-mobile-web-app-status-bar-style" content="black">
+	<script src="js/mui.js"></script>
+	<link href="css/mui.min.css" rel="stylesheet" />
+	<style type="text/css">
+		html,
+		body {
+			background-color: #efeff4;
+		}
+		header.mui-bar {
+			display: none;
+		}
+		.mui-bar-nav ~ .mui-content {
+			padding: 0;
+		}
+		#refresh {
+			/*避免导航边框和列表背景边框重叠，看起来像两条边框似得；*/
+			margin-top: -1px;
+		}
+	</style>
+	<link href="css/mui.min.css" rel="stylesheet" />
+</head>
+
+<body>
+<div id="refresh" class="mui-content mui-scroll-wrapper">
+	<div class="mui-scroll">
+		<ul id="myList" class="mui-table-view mui-table-view-chevron">
+		</ul>
+	</div>
+</div>
+
+<script>
+	mui.init({
+		pullRefresh: {
+			container: '#refresh',
+			down: {
+				contentdown: "下拉刷新",
+				contentover: "释放立即刷新",
+				contentrefresh: "正在刷新...", //
+				callback: pulldownRefresh //必选，刷新函数，
+			},
+			up: {
+				contentdown: '更多信息...',
+				contentover: "释放立即刷新",
+				contentrefresh: "正在刷新...",
+				callback: pullupRefresh
+			}
+		},
+		keyEventBind: {
+				backbutton: false
+		}
+	});
+
+	var P= 1;
+	var HTML_LIST = '';
+	var TAB='all';
+	
+	function pullupRefresh() {
+		var self = this;
+		P++;
+		//业务逻辑代码，比如通过ajax从服务器获取新数据；
+		//注意，加载完新数据后，必须执行如下代码，两个注意事项：
+		//1、若为ajax请求，则需将如下代码放置在处理完ajax响应数据之后
+		//2、注意this的作用域，若存在匿名函数，需将this复制后使用，参考hello mui中的代码示例；
+		getPage(P, function() {
+			self.endPullupToRefresh(false);
+		});
+	}
+
+	function pulldownRefresh() {
+		//业务逻辑代码，比如通过ajax从服务器获取新数据；
+		//注意，加载完新数据后，必须执行如下代码，两个注意事项：
+		//1、若为ajax请求，则需将如下代码放置在处理完ajax响应数据之后
+		//2、注意this的作用域，若存在匿名函数，需将this复制后使用，参考hello mui中的代码示例；
+		refresh(function() {
+			mui('#refresh').pullRefresh().endPulldownToRefresh();
+		});
+		//mui('#pullrefresh').pullRefresh().endPulldownToRefresh(); //refresh completed
+	}
+
+	window.onload = function() {
+		refresh(function(){});
+	};
+
+	mui('body').on('tap', 'li', function(e) {
+		var detail_id= this.getAttribute('detail');
+		mui.openWindow({
+			url: '/detail.html',
+			id: 'detail.html',
+			extras:{
+				detailID: detail_id
+			},
+			show:{
+				autoShow:false
+			}
+		});
+	});
+
+	//bar事件
+	//刷新
+	mui.plusReady(function(){
+		window.addEventListener('listRefresh',function(event){
+			refresh(function(){
+				window.scrollTo(0,0);
+			});
+		});
+	//跳转
+		window.addEventListener('listGoto',function(event){
+			P = event.detail.page;
+			HTML_LIST = '';
+			getPage(P,function(){
+				window.scrollTo(0,0);
+			})
+		});
+	});
+
+	//tab标签
+	window.addEventListener('tab',function(e){
+		TAB=event.detail.tab;
+		refresh(function(){});
+		window.scrollTo(0,0);
+	});
+
+	function refresh(cb){
+		HTML_LIST = '';
+		P = 1;
+		getPage(P,function() {
+			cb();
+		});
+	}
+
+	function getPage(page,cb) {
+		var list = get('https://cnodejs.org/api/v1/topics?page=' + page + '&limit=20&tab='+TAB, function(data) {
+			var list = JSON.parse(data).data;
+			var num =list.length;
+			for (var i = 0; i < num; i++) {
+				HTML_LIST+= '<li class="mui-table-view-cell" detail="' + list[i].id + '"><a class="mui-navigate-right" > <span class="mui-badge">' + list[i].reply_count + '</span><span class="mui-ellipsis-2 ">' + list[i].title + '</span></a></li>';
+			}
+			//onclick="openDetail( & apos;'+list[i].id+' & apos;)"
+			document.getElementById('myList').innerHTML = HTML_LIST;
+			cb();
+		});
+	}
+
+	function get(url, callback) {
+		var xmlhttp = null;
+		xmlhttp = new XMLHttpRequest();
+		xmlhttp.open("GET", url, true);
+		xmlhttp.send(null);
+		xmlhttp.onreadystatechange = function() {
+			if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
+				callback(xmlhttp.responseText);
+			}
+		}
+	}
+
+</script>
+</body>
+</html>
